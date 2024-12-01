@@ -22,17 +22,15 @@ fn parse_input(file_path: &str) -> Result<(Vec<i64>, Vec<i64>), Error> {
         .filter_map(|num| num.parse::<i64>().ok())
         .collect();
 
-    let mut a: Vec<i64> = Vec::new();
-    let mut b: Vec<i64> = Vec::new();
+    let (a, b): (Vec<(usize, i64)>, Vec<(usize, i64)>) = numbers
+        .into_iter()
+        .enumerate()
+        .partition(|(i, _)| i % 2 == 0);
 
-    for (i, &value) in numbers.iter().enumerate() {
-        if i % 2 == 0 {
-            a.push(value);
-        } else {
-            b.push(value);
-        }
-    }
-    Ok((a, b))
+    Ok((
+        a.into_iter().map(|n| n.1).collect(),
+        b.into_iter().map(|n| n.1).collect(),
+    ))
 }
 
 fn distance_score(a: &Vec<i64>, b: &Vec<i64>) -> u64 {
