@@ -43,11 +43,10 @@ fn distance_score(a: &Vec<i64>, b: &Vec<i64>) -> u64 {
 }
 
 fn similarity_score(a: &Vec<i64>, b: &Vec<i64>) -> u64 {
-    let mut occurances = HashMap::new();
-
-    for &num in b {
-        *occurances.entry(num).or_insert(0) += 1;
-    }
+    let occurances = b.iter().fold(HashMap::new(), |mut acc, &n| {
+        *acc.entry(n).or_insert(0) += 1;
+        acc
+    });
 
     a.iter()
         .map(|n| (occurances.get(n).unwrap_or(&0) * n) as u64)
