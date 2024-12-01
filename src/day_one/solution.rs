@@ -1,10 +1,14 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Error, Read};
+use std::iter::zip;
 
 pub fn solution() {
     let (list_a, list_b) = parse_input("input.txt").unwrap();
-    let answer = sort_zip_abs_sum(list_a, list_b).to_string();
-    println!("{}", answer);
+    let answer_part_one = distance_score(&list_a, &list_b).to_string();
+    println!("The answer to part one is: {}", answer_part_one);
+    let answer_part_two = similarity_score(&list_a, &list_b);
+    println!("The answer to part two is: {}", answer_part_two);
 }
 
 fn parse_input(file_path: &str) -> Result<(Vec<i64>, Vec<i64>), Error> {
@@ -31,11 +35,25 @@ fn parse_input(file_path: &str) -> Result<(Vec<i64>, Vec<i64>), Error> {
     Ok((a, b))
 }
 
-pub fn sort_zip_abs_sum(mut a: Vec<i64>, mut b: Vec<i64>) -> u64 {
-    a.sort();
-    b.sort();
+fn distance_score(a: &Vec<i64>, b: &Vec<i64>) -> u64 {
+    let mut x = a.to_vec();
+    x.sort();
+    let mut y = b.to_vec();
+    y.sort();
 
-    std::iter::zip(a, b).map(|e| e.0.abs_diff(e.1)).sum()
+    zip(x, y).map(|e| e.0.abs_diff(e.1)).sum()
+}
+
+fn similarity_score(a: &Vec<i64>, b: &Vec<i64>) -> u64 {
+    let mut occurances = HashMap::new();
+
+    for &num in b {
+        *occurances.entry(num).or_insert(0) += 1;
+    }
+
+    a.iter()
+        .map(|n| (occurances.get(n).unwrap_or(&0) * n) as u64)
+        .sum()
 }
 
 #[cfg(test)]
@@ -46,19 +64,27 @@ mod tests {
     use super::*;
 
     #[test]
-    fn day_one_example_should_be_11() {
+    fn distance_score_example_returns_11() {
         let first = vec![3, 4, 2, 1, 3, 3];
         let second = vec![4, 3, 5, 3, 9, 3];
 
-        assert_eq!(sort_zip_abs_sum(first.to_vec(), second.to_vec()), 11);
+        assert_eq!(distance_score(&first, &second), 11);
     }
     #[test]
-    fn day_one_abs() {
+    fn distance_score_abs() {
         let a = vec![10];
         let b = vec![1];
 
-        assert_eq!(sort_zip_abs_sum(a.to_vec(), b.to_vec()), 9);
-        assert_eq!(sort_zip_abs_sum(b.to_vec(), a.to_vec()), 9);
+        assert_eq!(distance_score(&a, &b), 9);
+        assert_eq!(distance_score(&b, &a), 9);
+    }
+
+    #[test]
+    fn simularity_score_example_returns_31() {
+        let first = vec![3, 4, 2, 1, 3, 3];
+        let second = vec![4, 3, 5, 3, 9, 3];
+
+        assert_eq!(similarity_score(&first, &second), 31);
     }
 
     #[test]
