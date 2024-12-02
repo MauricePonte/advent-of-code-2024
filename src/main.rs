@@ -1,5 +1,5 @@
-use aoc::day_one::solution::solution_day_one;
+use aoc::day_two::solution::solution_day_two;
 
 fn main() {
-    solution_day_one();
+    solution_day_two();
 }

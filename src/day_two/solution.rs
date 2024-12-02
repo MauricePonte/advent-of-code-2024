@@ -1,5 +1,4 @@
 use std::{
-    f32::consts::PI,
     fs::File,
     io::{Error, Read},
 };
@@ -8,6 +7,8 @@ pub fn solution_day_two() {
     let data = parse_file("input.txt").expect("failed to read from file");
     let answer_part_one = amount_levels_are_safe(&data);
     println!("The answer to part one is: {}", answer_part_one);
+    let answer_part_two = amount_levels_are_safe_with_fault_tolerance(&data);
+    println!("The answer to part two is: {}", answer_part_two);
 }
 
 fn parse_file(file_path: &str) -> Result<Vec<Vec<i64>>, Error> {
@@ -32,9 +33,30 @@ fn amount_levels_are_safe(data: &Vec<Vec<i64>>) -> usize {
     data.iter().filter(|v| is_safe(v)).count()
 }
 
+fn amount_levels_are_safe_with_fault_tolerance(data: &Vec<Vec<i64>>) -> usize {
+    data.iter().filter(|v| is_safe_with_tolerance(v)).count()
+}
+
+fn is_safe_with_tolerance(v: &Vec<i64>) -> bool {
+    if is_safe(v) {
+        return true;
+    }
+
+    let diff = vec_diff(&v);
+    let mut faults = 1;
+    for i in 0..diff.len() {
+        let mut new_list = diff.to_vec();
+        new_list.remove(i); // Remove one item
+        if !is_safe(&new_list) {
+            faults += 1;
+        }
+    }
+
+    faults < 2
+}
+
 fn is_safe(v: &Vec<i64>) -> bool {
     let diff = vec_diff(&v);
-
     diff.iter().all(|&n| n > 0 && (1..=3).contains(&n))
         || diff.iter().all(|&n| n < 0 && (-3..=-1).contains(&n))
 }
@@ -60,6 +82,42 @@ mod tests {
     fn vec_diff_negative() {
         let a = vec![1, 2];
         assert_eq!(vec_diff(&a), vec!(-1));
+    }
+
+    #[test]
+    fn is_safe_with_tolerance_when_none_removed() {
+        let a = vec![7, 6, 4, 2, 1];
+        let b = vec![1, 3, 6, 7, 9];
+
+        let result_a = is_safe_with_tolerance(&a);
+        let result_b = is_safe_with_tolerance(&b);
+
+        assert!(result_a);
+        assert!(result_b);
+    }
+
+    #[test]
+    fn is_safe_with_tolerance_when_one_level_is_removed() {
+        let a = vec![1, 3, 2, 4, 5];
+        let b = vec![8, 6, 4, 4, 1];
+
+        let result_a = is_safe_with_tolerance(&a);
+        let result_b = is_safe_with_tolerance(&b);
+
+        assert!(result_a);
+        assert!(result_b);
+    }
+
+    #[test]
+    fn is_unsafe_with_tolerance_when_more_then_one_is_removed() {
+        let a = vec![1, 2, 7, 8, 9];
+        let b = vec![9, 7, 6, 2, 1];
+
+        let result_a = is_safe_with_tolerance(&a);
+        let result_b = is_safe_with_tolerance(&b);
+
+        assert!(result_a);
+        assert!(result_b);
     }
 
     #[test]
