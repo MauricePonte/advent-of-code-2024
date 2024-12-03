@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{Error, Read};
 use std::iter::zip;
 
-pub fn solution_day_two() {
+pub fn solution_day_one() {
     let (list_a, list_b) = parse_input("input.txt").unwrap();
     let answer_part_one = distance_score(&list_a, &list_b).to_string();
     println!("The answer to part one is: {}", answer_part_one);

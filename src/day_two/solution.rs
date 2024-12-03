@@ -1,177 +1,77 @@
-use std::{
-    fs::File,
-    io::{Error, Read},
-};
-
 pub fn solution_day_two() {
-    let data = parse_file("input.txt").expect("failed to read from file");
-    let answer_part_one = amount_levels_are_safe(&data);
-    println!("The answer to part one is: {}", answer_part_one);
-    let answer_part_two = amount_levels_are_safe_with_fault_tolerance(&data);
-    println!("The answer to part two is: {}", answer_part_two);
+    let input = include_str!("input.txt");
+    let count = part_two(input);
+    println!("{}", count);
 }
 
-fn parse_file(file_path: &str) -> Result<Vec<Vec<i64>>, Error> {
-    let mut file = File::open(file_path)?;
+fn prepare(file: &str) -> Vec<Vec<i32>> {
+    let mut reports: Vec<Vec<i32>> = Vec::new();
 
-    let mut contents = String::new();
-    file.read_to_string(&mut contents)?;
+    for line in file.lines() {
+        let numbers: Vec<i32> = line
+            .split_whitespace()
+            .map(|x| x.parse::<i32>().unwrap_or_else(|_| panic!("{}", x)))
+            .collect();
 
-    let mut data: Vec<Vec<i64>> = vec![];
-    contents.lines().for_each(|line| {
-        data.push(
-            line.split_whitespace()
-                .filter_map(|split| split.parse::<i64>().ok())
-                .collect(),
-        )
-    });
-
-    Ok(data)
-}
-
-fn amount_levels_are_safe(data: &Vec<Vec<i64>>) -> usize {
-    data.iter().filter(|v| is_safe(v)).count()
-}
-
-fn amount_levels_are_safe_with_fault_tolerance(data: &Vec<Vec<i64>>) -> usize {
-    data.iter().filter(|v| is_safe_with_tolerance(v)).count()
-}
-
-fn is_safe_with_tolerance(v: &Vec<i64>) -> bool {
-    if is_safe(v) {
-        return true;
+        reports.push(numbers);
     }
 
-    let diff = vec_diff(&v);
-    let mut faults = 1;
-    for i in 0..diff.len() {
-        let mut new_list = diff.to_vec();
-        new_list.remove(i); // Remove one item
-        if !is_safe(&new_list) {
-            faults += 1;
+    reports
+}
+
+fn is_increasing(arr: &[i32]) -> bool {
+    arr.windows(2).all(|w| w[1] > w[0])
+}
+
+fn is_decreasing(arr: &[i32]) -> bool {
+    arr.windows(2).all(|w| w[1] < w[0])
+}
+
+fn is_safe(arr: &[i32]) -> bool {
+    arr.windows(2)
+        .all(|w| (w[0] - w[1]).abs() >= 1 && (w[0] - w[1]).abs() <= 3)
+}
+
+fn is_monotonic(arr: &[i32]) -> bool {
+    is_increasing(arr) || is_decreasing(arr)
+}
+
+pub fn part_one(file: &str) -> i32 {
+    let reports = prepare(file);
+
+    let mut count = 0;
+
+    for report in reports {
+        if is_monotonic(&report) && is_safe(&report) {
+            count += 1;
+        }
+    }
+    count
+}
+
+fn check_report_damp(rep: &mut Vec<i32>) -> bool {
+    for i in 0..rep.len() {
+        let removed = rep.remove(i);
+
+        if is_monotonic(&rep) && is_safe(&rep) {
+            return true;
+        }
+        rep.insert(i, removed);
+    }
+
+    false
+}
+
+pub fn part_two(file: &str) -> i32 {
+    let reports = prepare(file);
+
+    let mut count = 0;
+
+    for mut report in reports {
+        if check_report_damp(&mut report) {
+            count += 1
         }
     }
 
-    faults < 2
-}
-
-fn is_safe(v: &Vec<i64>) -> bool {
-    let diff = vec_diff(&v);
-    diff.iter().all(|&n| n > 0 && (1..=3).contains(&n))
-        || diff.iter().all(|&n| n < 0 && (-3..=-1).contains(&n))
-}
-
-fn vec_diff(v: &Vec<i64>) -> Vec<i64> {
-    let skip = v.iter().skip(1);
-    v.iter().zip(skip).map(|(x, y)| x - y).collect()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::fs::remove_file;
-    use std::io::Write;
-
-    #[test]
-    fn vec_diff_positive() {
-        let a = vec![2, 1];
-        assert_eq!(vec_diff(&a), vec!(1));
-    }
-
-    #[test]
-    fn vec_diff_negative() {
-        let a = vec![1, 2];
-        assert_eq!(vec_diff(&a), vec!(-1));
-    }
-
-    #[test]
-    fn is_safe_with_tolerance_when_none_removed() {
-        let a = vec![7, 6, 4, 2, 1];
-        let b = vec![1, 3, 6, 7, 9];
-
-        let result_a = is_safe_with_tolerance(&a);
-        let result_b = is_safe_with_tolerance(&b);
-
-        assert!(result_a);
-        assert!(result_b);
-    }
-
-    #[test]
-    fn is_safe_with_tolerance_when_one_level_is_removed() {
-        let a = vec![1, 3, 2, 4, 5];
-        let b = vec![8, 6, 4, 4, 1];
-
-        let result_a = is_safe_with_tolerance(&a);
-        let result_b = is_safe_with_tolerance(&b);
-
-        assert!(result_a);
-        assert!(result_b);
-    }
-
-    #[test]
-    fn is_unsafe_with_tolerance_when_more_then_one_is_removed() {
-        let a = vec![1, 2, 7, 8, 9];
-        let b = vec![9, 7, 6, 2, 1];
-
-        let result_a = is_safe_with_tolerance(&a);
-        let result_b = is_safe_with_tolerance(&b);
-
-        assert!(result_a);
-        assert!(result_b);
-    }
-
-    #[test]
-    fn is_safe_when_decreasing() {
-        let v = vec![7, 6, 4, 2, 1];
-        assert!(is_safe(&v));
-    }
-
-    #[test]
-    fn is_safe_when_increasing() {
-        let v = vec![1, 3, 6, 7, 9];
-        assert!(is_safe(&v));
-    }
-
-    #[test]
-    fn is_unsafe_when_increase() {
-        let v = vec![1, 2, 7, 8, 9];
-        assert!(!is_safe(&v));
-    }
-
-    #[test]
-    fn is_unsafe_when_decrease() {
-        let v = vec![9, 7, 6, 2, 1];
-        assert!(!is_safe(&v));
-    }
-
-    #[test]
-    fn is_unsafe_when_increase_nor_decrease() {
-        let v = vec![1, 3, 2, 4, 5];
-        assert!(!is_safe(&v));
-    }
-
-    #[test]
-    fn is_unsafe_when_increase_and_decrease() {
-        let v = vec![1, 3, 2, 4, 5];
-        assert!(!is_safe(&v));
-    }
-
-    #[test]
-    fn parse_file_parses_file() {
-        let file_path = "test.txt";
-        let content = "1 2 3
-            1 2 3";
-        let mut file = File::create(file_path).expect("failed to create test file");
-
-        file.write_all(content.as_bytes())
-            .expect("failed to write to file");
-
-        let mut expected: Vec<Vec<i64>> = vec![];
-        expected.push(vec![1, 2, 3]);
-        expected.push(vec![1, 2, 3]);
-        let actual = parse_file(file_path).unwrap();
-        assert_eq!(actual, expected);
-
-        remove_file(file_path).expect("failed to remove file");
-    }
+    count
 }
