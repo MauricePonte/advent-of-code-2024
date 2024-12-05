@@ -36,28 +36,30 @@ fn match_slice(row: &[char], m: &[char]) -> bool {
     row == m || rev == m
 }
 
-fn rot90(m: &mut Array2<char>) -> Result<Array2<char>, anyhow::Error> {
-    let axes_list: Vec<usize> = (0..m.ndim()).collect();
-    let mut swapped_axes_list = axes_list.clone();
+fn rotate(m: &mut Array2<char>) -> Result<Array2<char>, anyhow::Error> {
+    // in   c1  c2  c3      out c1  c2  c3
+    // r1   1   2   3       r1  7   4   1
+    // r2   4   5   6  =>   r2  8   5   2
+    // r3   7   8   9       r3  9   6   3
 
-    let copy = swapped_axes_list[0].clone();
-    swapped_axes_list[0] = swapped_axes_list[1];
-    swapped_axes_list[1] = copy;
+    // c1 [1, 4, 7] => flip => r1 [7, 4, 1]
+    // c2 [2, 5, 8] => flip => r2 [8, 5, 2]
+    // c3 [3, 6, 9] => flip => r3 [9, 6, 3]
+    //
 
-    return Ok(transpose_and_flip(m, 1, &swapped_axes_list));
-}
+    let mut teehee: Vec<char> = m
+        .columns()
+        .into_iter()
+        .map(|col| -> Vec<char> { col.to_slice().into_iter().rev().clone() })
+        .flatten()
+        .collect();
 
-// Function to flip the array along the given axis
-fn flip(m: &Array2<char>, axis: usize) -> Array2<char> {
-    let mut flipped = m.to_owned();
-    flipped.swap_axes(axis, (axis + 1) % m.ndim()); // Perform axis flip
-    flipped
-}
-
-// Function to transpose the array based on the axes list
-fn transpose_and_flip(m: &Array2<char>, axis: usize, axes_list: &[usize]) -> Array2<char> {
-    let transposed = m.view().reversed_axes().to_owned(); // Transpose the ndarray
-    flip(&transposed, axis)
+    let array: Array2<char> = Array2::from_shape_vec((3, 3), teehee).expect("spanish inquisition");
+    println!("why god ?{:?}", array);
+    let tee = m.column_mut(0).t().to_owned();
+    println!("{}", &tee);
+    m.swap((0, 0), (2, 0));
+    todo!()
 }
 
 #[cfg(test)]
@@ -102,7 +104,7 @@ mod tests {
     fn transpose_transposes() {
         let mut array = array![['a', 'b', 'c'], ['d', 'e', 'f'], ['g', 'h', 'i']];
         let target = array![['g', 'd', 'a'], ['h', 'e', 'c'], ['g', 'd', 'a']];
-
-        assert_eq!(rot90(&mut array).unwrap(), &target);
+        assert_eq!(rotate(&mut array).unwrap(), &target);
+        assert_eq!(rotate(&mut array).unwrap(), &target);
     }
 }
