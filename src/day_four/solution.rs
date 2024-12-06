@@ -1,12 +1,55 @@
-use ndarray::{Array2, ArrayView, ArrayView1, ArrayView2};
+use std::env::home_dir;
+
+use ndarray::{s, Array, Array2, ArrayView, ArrayView1, ArrayView2};
 
 pub fn solution_day_four() {
     let input = include_str!("input.txt");
     part_one(input);
+    part_two(input);
 }
 
 fn part_one(input: &str) {
-    let array = create_2darray(input);
+    let pattern = ['X', 'M', 'A', 'S'];
+    let array = create_2darray(input).unwrap();
+    let padded_arr = pad_array(&array, 4, 'f');
+    let mut answer = check_array(&padded_arr, pattern);
+    let rotated_array = rotate2(&padded_arr);
+    answer.extend(&check_array(&rotated_array, pattern));
+    println!("Part one: {}", answer.iter().filter(|&&a| a).count());
+}
+
+fn part_two(input: &str) {
+    let pattern = ['M', 'A', 'S'];
+    let array = create_2darray(input).unwrap();
+    let padded_arr = pad_array(&array, 4, 'f');
+    let mut answer = check_array_two(&padded_arr, pattern);
+    println!("Part two: {}", answer.iter().filter(|&&a| a).count());
+}
+
+fn check_array(array: &Array2<char>, pattern: [char; 4]) -> Vec<bool> {
+    let mut answer = Vec::new();
+    array
+        .windows_with_stride((4, 4), (1, 1))
+        .into_iter()
+        .for_each(|window| {
+            answer.push(horizontal_match(&window, &pattern));
+            answer.push(diagonal_match(&window, &pattern));
+        });
+    answer
+}
+
+fn check_array_two(array: &Array2<char>, pattern: [char; 3]) -> Vec<bool> {
+    let mut answer = Vec::new();
+    array
+        .windows_with_stride((3, 3), (1, 1))
+        .into_iter()
+        .for_each(|window| {
+            let a = diagonal_match(&window, &pattern);
+            let r_a = rotate2(&window.to_owned());
+            let b = diagonal_match(&r_a.view(), &pattern);
+            answer.push(a && b);
+        });
+    answer
 }
 
 fn create_2darray(input: &str) -> Result<Array2<char>, anyhow::Error> {
@@ -20,12 +63,12 @@ fn create_2darray(input: &str) -> Result<Array2<char>, anyhow::Error> {
     Ok(array)
 }
 
-fn horizontal_match(a: &Array2<char>, m: &[char]) -> bool {
+fn horizontal_match(a: &ArrayView2<char>, m: &[char]) -> bool {
     let row = a.row(0).to_vec();
     match_slice(&row, m)
 }
 
-fn diagonal_match(a: Array2<char>, m: &[char]) -> bool {
+fn diagonal_match(a: &ArrayView2<char>, m: &[char]) -> bool {
     let diag = a.diag().to_vec();
     match_slice(&diag, m)
 }
@@ -36,30 +79,32 @@ fn match_slice(row: &[char], m: &[char]) -> bool {
     row == m || rev == m
 }
 
-fn rotate(m: &mut Array2<char>) -> Result<Array2<char>, anyhow::Error> {
-    // in   c1  c2  c3      out c1  c2  c3
-    // r1   1   2   3       r1  7   4   1
-    // r2   4   5   6  =>   r2  8   5   2
-    // r3   7   8   9       r3  9   6   3
+fn rotate2(grid: &Array2<char>) -> Array2<char> {
+    let transposed = grid.t();
 
-    // c1 [1, 4, 7] => flip => r1 [7, 4, 1]
-    // c2 [2, 5, 8] => flip => r2 [8, 5, 2]
-    // c3 [3, 6, 9] => flip => r3 [9, 6, 3]
-    //
+    let (rows, cols) = grid.dim();
 
-    let mut teehee: Vec<char> = m
-        .columns()
-        .into_iter()
-        .map(|col| -> Vec<char> { col.to_slice().into_iter().rev().clone() })
-        .flatten()
-        .collect();
+    let mut rotated = Array2::default((cols, rows));
+    for (i, row) in transposed.outer_iter().enumerate() {
+        rotated.row_mut(i).assign(&row.slice(s![..;-1]));
+    }
 
-    let array: Array2<char> = Array2::from_shape_vec((3, 3), teehee).expect("spanish inquisition");
-    println!("why god ?{:?}", array);
-    let tee = m.column_mut(0).t().to_owned();
-    println!("{}", &tee);
-    m.swap((0, 0), (2, 0));
-    todo!()
+    rotated
+}
+
+fn pad_array(grid: &Array2<char>, padding: usize, pad_char: char) -> Array2<char> {
+    let (rows, cols) = grid.dim();
+
+    let padded_rows = rows + 2 * padding;
+    let padded_cols = cols + 2 * padding;
+
+    let mut padded = Array2::from_elem((padded_rows, padded_cols), pad_char);
+
+    padded
+        .slice_mut(s![padding..padding + rows, padding..padding + cols])
+        .assign(grid);
+
+    padded
 }
 
 #[cfg(test)]
@@ -82,9 +127,9 @@ mod tests {
         let array_unexpected = array![['v', 'b', 'c'], ['a', 'b', 'c'], ['a', 'b', 'c']];
 
         let target_slice = vec!['a', 'b', 'c'];
-        assert!(horizontal_match(&array, &target_slice));
-        assert!(horizontal_match(&array_rev, &target_slice));
-        assert!(!horizontal_match(&array_unexpected, &target_slice));
+        assert!(horizontal_match(&array.view(), &target_slice));
+        assert!(horizontal_match(&array_rev.view(), &target_slice));
+        assert!(!horizontal_match(&array_unexpected.view(), &target_slice));
     }
 
     #[test]
@@ -95,16 +140,16 @@ mod tests {
 
         let target_slice = vec!['a', 'b', 'c'];
 
-        assert!(diagonal_match(array, &target_slice));
-        assert!(diagonal_match(array_rev, &target_slice));
-        assert!(!diagonal_match(array_unexpected, &target_slice));
+        assert!(diagonal_match(&array.view(), &target_slice));
+        assert!(diagonal_match(&array_rev.view(), &target_slice));
+        assert!(!diagonal_match(&array_unexpected.view(), &target_slice));
     }
 
     #[test]
-    fn transpose_transposes() {
-        let mut array = array![['a', 'b', 'c'], ['d', 'e', 'f'], ['g', 'h', 'i']];
-        let target = array![['g', 'd', 'a'], ['h', 'e', 'c'], ['g', 'd', 'a']];
-        assert_eq!(rotate(&mut array).unwrap(), &target);
-        assert_eq!(rotate(&mut array).unwrap(), &target);
+    fn check_array_two_valid() {
+        let array = array![['M', 'A', 'M'], ['M', 'A', 'S'], ['S', 'A', 'S']];
+        let pattern = ['M', 'A', 'S'];
+        let a = check_array_two(&array, pattern);
+        assert_eq!(a.iter().filter(|&&a| a).count(), 1);
     }
 }
