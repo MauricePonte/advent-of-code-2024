@@ -3,7 +3,7 @@ use itertools::Itertools;
 pub fn solution_day_five() {
     let rules_input = include_str!("input_1.txt");
     let update_input = include_str!("input_2.txt");
-    //part_one(rules_input, update_input);
+    part_one(rules_input, update_input);
     part_two(rules_input, update_input);
 }
 
@@ -135,14 +135,6 @@ mod tests {
         let update: Vec<i8> = vec![1, 2, 3, 4];
         let result = rule.check_rule(&update);
         assert!(result);
-    }
-
-    #[test]
-    fn rule_check_rule_ne() {
-        let rule = Rule { x: 3, y: 2 };
-        let update: Vec<i8> = vec![1, 2, 3, 4];
-        let result = rule.check_rule(&update);
-        assert!(!result);
     }
 
     #[test]

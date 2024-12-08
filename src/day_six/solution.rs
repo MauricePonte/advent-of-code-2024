@@ -1,4 +1,4 @@
-use std::iter::Cycle;
+use std::{iter::Cycle, usize::MAX};
 
 use itertools::Itertools;
 use ndarray::Array2;
@@ -6,19 +6,32 @@ use ndarray::Array2;
 pub fn solution_day_six() {
     let input = include_str!("input.txt");
     part_one(input);
+    part_two(input);
 }
 
 fn part_one(input: &str) -> usize {
     let map_arr = init_array(input).unwrap();
-    let game_map = Map::new(map_arr);
+    let mut game_map = Map::new(map_arr);
     let mut player = Player::new(&game_map);
-    game_loop(game_map, &mut player)
+    game_loop(&mut game_map, &mut player)
 }
 
-fn game_loop(game_map: Map, player: &mut Player) -> usize {
+fn part_two(input: &str) -> Vec<(usize, usize)> {
+    let map_arr = init_array(input).unwrap();
+    let mut game_map = Map::new(map_arr);
+    let mut player = Player::new(&game_map);
+    game_loop(&mut game_map, &mut player);
+    println!(
+        "Answer to part two is: {} possible obs",
+        game_map.possible.iter().unique().count()
+    );
+    game_map.possible
+}
+
+fn game_loop(game_map: &mut Map, player: &mut Player) -> usize {
     let mut visited_positions = vec![player.current_pos];
     loop {
-        match player.take_step(&game_map) {
+        match player.take_step(game_map) {
             Some(pos) => visited_positions.push(pos),
             None => break,
         }
@@ -32,8 +45,9 @@ fn game_loop(game_map: Map, player: &mut Player) -> usize {
 struct Player {
     current_pos: (usize, usize),
     pub steps_taken: u32,
-    directions: Cycle<std::vec::IntoIter<(isize, isize)>>,
+    directions: std::iter::Peekable<Cycle<std::vec::IntoIter<(isize, isize)>>>,
     current_direction: (isize, isize),
+    visited_obs: Vec<((usize, usize), (isize, isize))>,
 }
 
 impl Player {
@@ -45,22 +59,23 @@ impl Player {
             (0, -1), // LEFT
         ]
         .into_iter()
-        .cycle();
+        .cycle()
+        .peekable();
 
         let current_pos = map.clone().find('^').get(0).copied().unwrap_or((0, 0));
-
         let current_direction = directions.next().unwrap();
+        let visited_obs = Vec::new();
         Self {
             current_pos,
             steps_taken: 0,
             directions,
             current_direction,
+            visited_obs,
         }
     }
 
-    pub fn take_step(&mut self, map: &Map) -> Option<(usize, usize)> {
-        println!("BEFORE STEP");
-        println!("steps taken: {}", self.steps_taken);
+    pub fn take_step(&mut self, map: &mut Map) -> Option<(usize, usize)> {
+        //println!("BEFORE STEP");
         println!("current direction: {:?}", &self.current_direction);
         println!("current position: {:?}", &self.current_pos);
 
@@ -69,22 +84,44 @@ impl Player {
             (self.current_pos.1 as isize + self.current_direction.1) as usize,
         );
 
-        if !map.check_bounds(next_pos) {
+        if !map.is_position_valid(&next_pos) {
             return None;
         }
 
-        if map.check_obs(next_pos) {
+        if map.check_obs(&next_pos) {
             self.current_direction = self.directions.next().unwrap();
+            self.visited_obs.push((next_pos, self.current_direction));
         } else {
+            if self.look_right(map, next_pos) {
+                println!("found {:?}", next_pos);
+                println!("cdir {:?}", self.current_direction);
+                map.possible.push(next_pos);
+            }
             self.steps_taken += 1;
             self.current_pos = next_pos;
         }
 
-        println!("AFTER STEP");
-        println!("steps taken: {}", self.steps_taken);
-        println!("current direction: {:?}", &self.current_direction);
-        println!("current position: {:?}", &self.current_pos);
+        //println!("AFTER STEP");
         Some(self.current_pos)
+    }
+
+    fn look_right(&self, map: &mut Map, next_pos: (usize, usize)) -> bool {
+        if !map.is_position_valid(&next_pos) && !map.check_obs(&next_pos) {
+            return false;
+        }
+
+        let next_dir = self.directions.clone().peek().unwrap().clone();
+        if self.visited_obs.contains(&(next_pos, next_dir)) {
+            return true;
+        }
+
+        return self.look_right(
+            map,
+            (
+                ((next_pos.0 as isize) + next_dir.0) as usize,
+                ((next_pos.1 as isize) + next_dir.1) as usize,
+            ),
+        );
     }
 }
 
@@ -92,6 +129,7 @@ impl Player {
 struct Map {
     inner_map: Array2<char>,
     obstacles: Vec<(usize, usize)>,
+    possible: Vec<(usize, usize)>,
 }
 
 impl Map {
@@ -104,6 +142,7 @@ impl Map {
         Self {
             inner_map: map,
             obstacles,
+            possible: Vec::new(),
         }
     }
 
@@ -114,12 +153,12 @@ impl Map {
             .collect()
     }
 
-    fn check_bounds(&self, position: (usize, usize)) -> bool {
-        let (max_x, max_y) = self.inner_map.dim();
-        position.0 < max_x && position.1 < max_y
+    fn is_position_valid(&self, position: &(usize, usize)) -> bool {
+        let (x, y) = position;
+        (*x != 0 && *y != 0) && (*x < self.inner_map.nrows() && *y < self.inner_map.ncols())
     }
 
-    fn check_obs(&self, position: (usize, usize)) -> bool {
+    fn check_obs(&self, position: &(usize, usize)) -> bool {
         self.obstacles.contains(&position)
     }
 }
@@ -137,12 +176,13 @@ fn init_array(input: &str) -> Result<Array2<char>, anyhow::Error> {
 
 #[cfg(test)]
 mod tests {
-    use super::part_one;
+    use super::*;
 
     #[test]
     fn tst() {
         let input = include_str!("test.txt");
-        let answer = part_one(input);
-        assert_eq!(answer, 21);
+        let answer = part_two(input);
+        println!("possible {:?}", answer);
+        assert_eq!(answer.iter().count(), 6);
     }
 }
