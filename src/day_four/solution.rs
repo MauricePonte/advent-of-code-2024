@@ -1,6 +1,4 @@
-use std::env::home_dir;
-
-use ndarray::{s, Array, Array2, ArrayView, ArrayView1, ArrayView2};
+use ndarray::{s, Array2, ArrayView2};
 
 pub fn solution_day_four() {
     let input = include_str!("input.txt");
@@ -22,7 +20,7 @@ fn part_two(input: &str) {
     let pattern = ['M', 'A', 'S'];
     let array = create_2darray(input).unwrap();
     let padded_arr = pad_array(&array, 4, 'f');
-    let mut answer = check_array_two(&padded_arr, pattern);
+    let answer = check_array_two(&padded_arr, pattern);
     println!("Part two: {}", answer.iter().filter(|&&a| a).count());
 }
 
