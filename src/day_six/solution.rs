@@ -23,7 +23,6 @@ fn game_loop(game_map: Map, player: &mut Player) -> usize {
             None => break,
         }
     }
-    println!("{:?}", visited_positions);
     let unique = visited_positions.iter().unique().count();
     println!("Game finished. Found {} unique positions", unique);
     unique
